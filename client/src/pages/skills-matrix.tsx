@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Download, Upload } from "lucide-react";
 import { useAppContext } from "@/lib/contexts/app-context";
 import { format } from "date-fns";
+import { SkillMatrixData, Skill, TeamMember } from "@shared/schema";
 
 export default function SkillsMatrix() {
   const { toast } = useToast();
@@ -17,7 +18,7 @@ export default function SkillsMatrix() {
   const { currentSnapshot, isLoadingSnapshots } = useAppContext();
   
   // Fetch skill matrix data
-  const { data: skillMatrix, isLoading: isLoadingMatrix } = useQuery({
+  const { data: skillMatrix, isLoading: isLoadingMatrix } = useQuery<SkillMatrixData>({
     queryKey: ["/api/skill-matrix"],
   });
 
@@ -29,10 +30,67 @@ export default function SkillsMatrix() {
   };
 
   const handleExport = () => {
-    toast({
-      title: "Export Feature",
-      description: "Export functionality will be implemented in a future update."
-    });
+    if (!skillMatrix) {
+      toast({
+        title: "No data",
+        description: "There is no data to export.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      // Convert the skill matrix data to CSV format
+      const { members, skills, assessments } = skillMatrix;
+      
+      // Create header row with skill names
+      const headerRow = ['Team Member', 'Role', ...skills.map(skill => skill.name)];
+      
+      // Create data rows for each team member with their skill levels
+      const dataRows = members.map(member => {
+        const memberData = [member.name, member.role];
+        
+        // Add skill levels for each skill
+        skills.forEach(skill => {
+          const levelKey = `${member.id}_${skill.id}`;
+          const level = assessments[levelKey] || 0;
+          memberData.push(level.toString());
+        });
+        
+        return memberData;
+      });
+      
+      // Combine all rows into CSV content
+      const csvContent = [
+        headerRow.join(','),
+        ...dataRows.map(row => row.join(','))
+      ].join('\n');
+      
+      // Create a Blob with the CSV data
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      
+      // Create a download link and trigger the download
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `skills-matrix-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Export Successful",
+        description: "Skills matrix has been exported as CSV."
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Export Failed",
+        description: "An error occurred while exporting the data.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (

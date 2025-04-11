@@ -54,10 +54,53 @@ export default function Dashboard() {
 
   // Export data action
   const handleExport = () => {
-    toast({
-      title: "Export Feature",
-      description: "Export functionality will be implemented in a future update."
-    });
+    if (!teamStats || !weeklyComparison || !growthPerSkill || !topSkills) {
+      toast({
+        title: "No data",
+        description: "There is no data to export.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      // Create a comprehensive report object
+      const reportData = {
+        generatedAt: new Date().toISOString(),
+        teamStats,
+        weeklyComparison,
+        growthAreas,
+        stagnantAreas
+      };
+      
+      // Convert to JSON
+      const jsonData = JSON.stringify(reportData, null, 2);
+      
+      // Create a Blob with the JSON data
+      const blob = new Blob([jsonData], { type: 'application/json' });
+      
+      // Create a download link and trigger the download
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `skills-dashboard-report-${new Date().toISOString().split('T')[0]}.json`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Export Successful",
+        description: "Dashboard report has been exported as JSON."
+      });
+    } catch (error) {
+      console.error("Export error:", error);
+      toast({
+        title: "Export Failed",
+        description: "An error occurred while exporting the data.",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
@@ -176,11 +219,9 @@ export default function Dashboard() {
       <div className="bg-white rounded-lg shadow-sm p-6 mt-8">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-lg font-semibold">Skills Matrix Preview</h3>
-          <Link href="/skills-matrix">
-            <a className="text-blue-500 hover:text-blue-700 text-sm flex items-center gap-1">
-              <span>View full matrix</span>
-              <i className="ri-arrow-right-line"></i>
-            </a>
+          <Link href="/skills-matrix" className="text-blue-500 hover:text-blue-700 text-sm flex items-center gap-1">
+            <span>View full matrix</span>
+            <i className="ri-arrow-right-line"></i>
           </Link>
         </div>
 

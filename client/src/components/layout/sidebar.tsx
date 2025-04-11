@@ -48,14 +48,12 @@ export function Sidebar() {
         <ul className="space-y-2">
           {navItems.map((item) => (
             <li key={item.path}>
-              <Link href={item.path}>
-                <a className={cn(
-                  "flex items-center gap-3 p-2 rounded-md hover:bg-gray-700",
-                  location === item.path && "bg-gray-700"
-                )}>
-                  <i className={item.icon}></i>
-                  <span>{item.label}</span>
-                </a>
+              <Link href={item.path} className={cn(
+                "flex items-center gap-3 p-2 rounded-md hover:bg-gray-700",
+                location === item.path && "bg-gray-700"
+              )}>
+                <i className={item.icon}></i>
+                <span>{item.label}</span>
               </Link>
             </li>
           ))}
