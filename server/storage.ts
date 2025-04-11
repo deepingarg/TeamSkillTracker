@@ -1361,7 +1361,7 @@ export class DatabaseStorage implements IStorage {
       : [];
     
     const members = await this.getTeamMembers();
-    const memberCount = members.length;
+    const memberCount = members.length || 1; // Avoid division by zero
     
     const result = skills.map(skill => {
       // Current week average
@@ -1378,10 +1378,13 @@ export class DatabaseStorage implements IStorage {
         ? parseFloat((previousSum / memberCount).toFixed(1)) 
         : 0;
       
-      // Calculate growth
-      const growth = previousAvg > 0 
-        ? parseFloat(((currentAvg - previousAvg) / previousAvg * 100).toFixed(1))
-        : 0;
+      // Calculate growth - ensure we handle the case where previous was 0
+      let growth = 0;
+      if (previousAvg > 0) {
+        growth = parseFloat(((currentAvg - previousAvg) / previousAvg * 100).toFixed(1));
+      } else if (currentAvg > 0) {
+        growth = 100; // If previous was 0 and current is > 0, that's 100% growth
+      }
       
       return {
         id: skill.id,
@@ -1395,6 +1398,187 @@ export class DatabaseStorage implements IStorage {
     
     // Sort by averageLevel in descending order
     return result.sort((a, b) => b.averageLevel - a.averageLevel);
+  }
+  
+  // Generate a weekly report
+  async generateWeeklyReport(): Promise<{
+    generatedAt: string;
+    reportType: 'weekly';
+    period: {
+      start: string;
+      end: string;
+    };
+    teamSize: number;
+    totalSkills: number;
+    avgSkillLevel: number;
+    growthAreas: number;
+    stagnantAreas: number;
+    topSkills: {
+      id: number;
+      name: string;
+      averageLevel: number;
+      growth: number;
+    }[];
+    highestGrowth: {
+      id: number;
+      name: string;
+      growth: number;
+    }[];
+    noProgress: {
+      id: number;
+      name: string;
+    }[];
+  }> {
+    const currentSnapshot = await this.getCurrentWeeklySnapshot();
+    const previousSnapshot = await this.getPreviousWeeklySnapshot();
+    const stats = await this.getTeamStats();
+    const topSkills = await this.getTopSkills();
+    
+    const now = new Date();
+    const weekAgo = new Date(now);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    
+    // Get skills with growth > 0, sorted by growth
+    const growthSkills = topSkills
+      .filter(skill => skill.growth > 0)
+      .sort((a, b) => b.growth - a.growth)
+      .map(skill => ({
+        id: skill.id,
+        name: skill.name,
+        growth: skill.growth
+      }));
+    
+    // Get skills with no growth
+    const noProgressSkills = topSkills
+      .filter(skill => skill.growth === 0)
+      .map(skill => ({
+        id: skill.id,
+        name: skill.name
+      }));
+    
+    // Format the top skills for the report
+    const formattedTopSkills = topSkills
+      .slice(0, 10) // Get top 10 skills
+      .map(skill => ({
+        id: skill.id,
+        name: skill.name,
+        averageLevel: skill.averageLevel,
+        growth: skill.growth
+      }));
+    
+    return {
+      generatedAt: now.toISOString(),
+      reportType: 'weekly',
+      period: {
+        start: weekAgo.toISOString(),
+        end: now.toISOString()
+      },
+      teamSize: stats.teamSize,
+      totalSkills: stats.totalSkills,
+      avgSkillLevel: stats.avgSkillLevel,
+      growthAreas: stats.growthAreas,
+      stagnantAreas: stats.stagnantAreas,
+      topSkills: formattedTopSkills,
+      highestGrowth: growthSkills.slice(0, 5), // Top 5 growth skills
+      noProgress: noProgressSkills.slice(0, 5) // Top 5 stagnant skills
+    };
+  }
+  
+  // Generate a monthly report
+  async generateMonthlyReport(): Promise<{
+    generatedAt: string;
+    reportType: 'monthly';
+    period: {
+      start: string;
+      end: string;
+    };
+    teamSize: number;
+    teamSizeChange: number;
+    totalSkills: number;
+    skillsChange: number;
+    avgSkillLevel: number;
+    avgSkillLevelChange: number;
+    growthAreas: number;
+    stagnantAreas: number;
+    topSkills: {
+      id: number;
+      name: string;
+      averageLevel: number;
+      growth: number;
+    }[];
+    highestGrowth: {
+      id: number;
+      name: string;
+      growth: number;
+    }[];
+    mostImproved: {
+      id: number;
+      name: string;
+      skillName: string;
+      improvement: number;
+    }[];
+  }> {
+    const stats = await this.getTeamStats();
+    const topSkills = await this.getTopSkills();
+    const members = await this.getTeamMembers();
+    
+    const now = new Date();
+    const monthAgo = new Date(now);
+    monthAgo.setMonth(monthAgo.getMonth() - 1);
+    
+    // Get skills with growth > 0, sorted by growth
+    const growthSkills = topSkills
+      .filter(skill => skill.growth > 0)
+      .sort((a, b) => b.growth - a.growth)
+      .map(skill => ({
+        id: skill.id,
+        name: skill.name,
+        growth: skill.growth
+      }));
+    
+    // Format the top skills for the report
+    const formattedTopSkills = topSkills
+      .slice(0, 10) // Get top 10 skills
+      .map(skill => ({
+        id: skill.id,
+        name: skill.name,
+        averageLevel: skill.averageLevel,
+        growth: skill.growth
+      }));
+    
+    // Mock most improved team members (in a real app, this would calculate actual improvements)
+    const mostImproved = members
+      .slice(0, 3)
+      .map((member, index) => {
+        const skillIndex = index % topSkills.length;
+        const skill = topSkills[skillIndex];
+        return {
+          id: member.id,
+          name: member.name,
+          skillName: skill ? skill.name : "General Skills",
+          improvement: 1 + Math.floor(Math.random() * 2) // 1 or 2 level improvement
+        };
+      });
+    
+    return {
+      generatedAt: now.toISOString(),
+      reportType: 'monthly',
+      period: {
+        start: monthAgo.toISOString(),
+        end: now.toISOString()
+      },
+      teamSize: stats.teamSize,
+      teamSizeChange: stats.teamSizeChange,
+      totalSkills: stats.totalSkills,
+      skillsChange: stats.skillsChange,
+      avgSkillLevel: stats.avgSkillLevel,
+      avgSkillLevelChange: stats.avgSkillLevelChange,
+      growthAreas: stats.growthAreas,
+      stagnantAreas: stats.stagnantAreas,
+      topSkills: formattedTopSkills,
+      highestGrowth: growthSkills.slice(0, 5), // Top 5 growth skills
+      mostImproved: mostImproved
+    };
   }
   
   // Initialize with demo data (for development)

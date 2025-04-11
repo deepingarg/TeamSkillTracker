@@ -248,6 +248,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const topSkills = await storage.getTopSkills();
     res.json(topSkills);
   });
+  
+  // Reports API
+  app.get("/api/reports/weekly", async (req, res) => {
+    try {
+      const report = await storage.generateWeeklyReport();
+      res.json(report);
+    } catch (error) {
+      console.error("Error generating weekly report:", error);
+      res.status(500).json({ message: "Failed to generate weekly report" });
+    }
+  });
+  
+  app.get("/api/reports/monthly", async (req, res) => {
+    try {
+      const report = await storage.generateMonthlyReport();
+      res.json(report);
+    } catch (error) {
+      console.error("Error generating monthly report:", error);
+      res.status(500).json({ message: "Failed to generate monthly report" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/main-layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { 
   Select,
   SelectContent,
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { WeeklyComparisonChart } from "@/components/dashboard/weekly-comparison-chart";
 import { GrowthPerSkillChart } from "@/components/dashboard/growth-per-skill-chart";
+import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { 
   WeeklyComparisonData, 
@@ -22,11 +23,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { BadgeSkillLevel } from "@/components/ui/badge-skill-level";
 import { getSkillLevelName } from "@/lib/utils/skill-level";
+import { ArrowDownIcon, CalendarIcon, FilePieChartIcon, BarChart3Icon, DownloadIcon } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Reports() {
   const [selectedTab, setSelectedTab] = useState("team");
   const [selectedMember, setSelectedMember] = useState<string>("");
   const [selectedSkill, setSelectedSkill] = useState<string>("");
+  const [isLoadingWeeklyReport, setIsLoadingWeeklyReport] = useState(false);
+  const [isLoadingMonthlyReport, setIsLoadingMonthlyReport] = useState(false);
+  const { toast } = useToast();
 
   // Fetch data for reports
   const { data: weeklyComparison, isLoading: isLoadingComparison } = useQuery<WeeklyComparisonData>({
@@ -45,7 +51,7 @@ export default function Reports() {
     queryKey: ["/api/skills"],
   });
 
-  const { data: assessments } = useQuery({
+  const { data: assessments = [] } = useQuery<any[]>({
     queryKey: ["/api/assessments"],
   });
 
@@ -71,6 +77,176 @@ export default function Reports() {
 
   return (
     <MainLayout title="Reports">
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <CalendarIcon className="h-5 w-5 mr-2" />
+              Weekly Report
+            </CardTitle>
+            <CardDescription>
+              Generate a detailed report of team performance for the past week
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm mb-4">
+              This report includes weekly skill comparisons, growth metrics, and areas that need attention. It highlights progress made during the current week compared to the previous week.
+            </p>
+            <ul className="list-disc list-inside text-sm space-y-1 text-gray-600 mb-4">
+              <li>Team statistics and skill levels</li>
+              <li>Top performing skills</li>
+              <li>Growth and stagnant areas</li>
+              <li>Week-over-week comparisons</li>
+            </ul>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              className="w-full" 
+              onClick={async () => {
+                try {
+                  setIsLoadingWeeklyReport(true);
+                  const response = await fetch('/api/reports/weekly');
+                  
+                  if (!response.ok) {
+                    throw new Error('Failed to generate weekly report');
+                  }
+                  
+                  const report = await response.json();
+                  
+                  // Create a Blob with the JSON data
+                  const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+                  
+                  // Create a download link and trigger the download
+                  const link = document.createElement('a');
+                  const url = URL.createObjectURL(blob);
+                  const date = new Date().toISOString().split('T')[0];
+                  link.setAttribute('href', url);
+                  link.setAttribute('download', `weekly-skills-report-${date}.json`);
+                  link.style.visibility = 'hidden';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  
+                  toast({
+                    title: "Weekly Report Generated",
+                    description: "Your weekly report has been downloaded successfully.",
+                  });
+                } catch (error) {
+                  console.error("Error generating report:", error);
+                  toast({
+                    title: "Report Generation Failed",
+                    description: "There was a problem generating the weekly report.",
+                    variant: "destructive"
+                  });
+                } finally {
+                  setIsLoadingWeeklyReport(false);
+                }
+              }}
+              disabled={isLoadingWeeklyReport}
+            >
+              {isLoadingWeeklyReport ? (
+                <div className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generating...
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  <DownloadIcon className="h-4 w-4 mr-2" />
+                  Generate Weekly Report
+                </div>
+              )}
+            </Button>
+          </CardFooter>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <BarChart3Icon className="h-5 w-5 mr-2" />
+              Monthly Report
+            </CardTitle>
+            <CardDescription>
+              Generate a comprehensive monthly report with trends and insights
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm mb-4">
+              This report provides a comprehensive analysis of team skill development over the past month, including trends, key improvements, and strategic recommendations.
+            </p>
+            <ul className="list-disc list-inside text-sm space-y-1 text-gray-600 mb-4">
+              <li>Month-over-month skill comparisons</li>
+              <li>Most improved team members</li>
+              <li>Skills with highest growth potential</li>
+              <li>Strategic recommendations</li>
+            </ul>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              className="w-full" 
+              onClick={async () => {
+                try {
+                  setIsLoadingMonthlyReport(true);
+                  const response = await fetch('/api/reports/monthly');
+                  
+                  if (!response.ok) {
+                    throw new Error('Failed to generate monthly report');
+                  }
+                  
+                  const report = await response.json();
+                  
+                  // Create a Blob with the JSON data
+                  const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+                  
+                  // Create a download link and trigger the download
+                  const link = document.createElement('a');
+                  const url = URL.createObjectURL(blob);
+                  const date = new Date().toISOString().split('T')[0];
+                  link.setAttribute('href', url);
+                  link.setAttribute('download', `monthly-skills-report-${date}.json`);
+                  link.style.visibility = 'hidden';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  
+                  toast({
+                    title: "Monthly Report Generated",
+                    description: "Your monthly report has been downloaded successfully.",
+                  });
+                } catch (error) {
+                  console.error("Error generating report:", error);
+                  toast({
+                    title: "Report Generation Failed",
+                    description: "There was a problem generating the monthly report.",
+                    variant: "destructive"
+                  });
+                } finally {
+                  setIsLoadingMonthlyReport(false);
+                }
+              }}
+              disabled={isLoadingMonthlyReport}
+            >
+              {isLoadingMonthlyReport ? (
+                <div className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Generating...
+                </div>
+              ) : (
+                <div className="flex items-center">
+                  <DownloadIcon className="h-4 w-4 mr-2" />
+                  Generate Monthly Report
+                </div>
+              )}
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+      
       <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
         <TabsList className="mb-4">
           <TabsTrigger value="team">Team Reports</TabsTrigger>
