@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -56,6 +57,34 @@ export const settings = pgTable("settings", {
   key: text("key").notNull().unique(),
   value: json("value").notNull(),
 });
+
+// Define relations
+export const teamMembersRelations = relations(teamMembers, ({ many }) => ({
+  assessments: many(skillAssessments)
+}));
+
+export const skillsRelations = relations(skills, ({ many }) => ({
+  assessments: many(skillAssessments)
+}));
+
+export const weeklySnapshotsRelations = relations(weeklySnapshots, ({ many }) => ({
+  assessments: many(skillAssessments)
+}));
+
+export const skillAssessmentsRelations = relations(skillAssessments, ({ one }) => ({
+  teamMember: one(teamMembers, {
+    fields: [skillAssessments.teamMemberId],
+    references: [teamMembers.id]
+  }),
+  skill: one(skills, {
+    fields: [skillAssessments.skillId],
+    references: [skills.id]
+  }),
+  snapshot: one(weeklySnapshots, {
+    fields: [skillAssessments.snapshotId],
+    references: [weeklySnapshots.id]
+  })
+}));
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
