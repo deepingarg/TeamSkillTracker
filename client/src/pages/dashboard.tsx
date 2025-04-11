@@ -24,6 +24,9 @@ interface TeamStats {
   avgSkillLevel: number;
   growthAreas: number;
   stagnantAreas: number;
+  teamSizeChange: number;
+  skillsChange: number;
+  avgSkillLevelChange: number;
 }
 
 interface TopSkill {
@@ -161,9 +164,9 @@ export default function Dashboard() {
           icon="ri-team-line"
           iconBgColor="bg-blue-100"
           iconColor="text-blue-500"
-          change={2}
+          change={teamStats?.teamSizeChange || 0} 
           changeText="from last month"
-          changeIsPositive
+          changeIsPositive={teamStats?.teamSizeChange ? teamStats.teamSizeChange > 0 : false}
           isLoading={isLoading}
         />
         <SummaryCard
@@ -172,9 +175,9 @@ export default function Dashboard() {
           icon="ri-bookmark-line"
           iconBgColor="bg-purple-100"
           iconColor="text-purple-500"
-          change={3}
+          change={teamStats?.skillsChange || 0}
           changeText="new skills added"
-          changeIsPositive
+          changeIsPositive={teamStats?.skillsChange ? teamStats.skillsChange > 0 : false}
           isLoading={isLoading}
         />
         <SummaryCard
@@ -183,9 +186,9 @@ export default function Dashboard() {
           icon="ri-bar-chart-line"
           iconBgColor="bg-green-100"
           iconColor="text-green-500"
-          change={0.3}
+          change={teamStats?.avgSkillLevelChange || 0}
           changeText="from last week"
-          changeIsPositive
+          changeIsPositive={teamStats?.avgSkillLevelChange ? teamStats.avgSkillLevelChange > 0 : false}
           isLoading={isLoading}
         />
         <SummaryCard
@@ -196,7 +199,7 @@ export default function Dashboard() {
           iconColor="text-amber-500"
           change={teamStats?.stagnantAreas || 0}
           changeText="areas with no progress"
-          changeIsNegative
+          changeIsNegative={teamStats?.stagnantAreas ? teamStats.stagnantAreas > 0 : false}
           isLoading={isLoading}
         />
       </div>
