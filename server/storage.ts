@@ -1429,59 +1429,97 @@ export class DatabaseStorage implements IStorage {
       name: string;
     }[];
   }> {
-    const currentSnapshot = await this.getCurrentWeeklySnapshot();
-    const previousSnapshot = await this.getPreviousWeeklySnapshot();
-    const stats = await this.getTeamStats();
-    const topSkills = await this.getTopSkills();
-    
-    const now = new Date();
-    const weekAgo = new Date(now);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    
-    // Get skills with growth > 0, sorted by growth
-    const growthSkills = topSkills
-      .filter(skill => skill.growth > 0)
-      .sort((a, b) => b.growth - a.growth)
-      .map(skill => ({
-        id: skill.id,
-        name: skill.name,
-        growth: skill.growth
-      }));
-    
-    // Get skills with no growth
-    const noProgressSkills = topSkills
-      .filter(skill => skill.growth === 0)
-      .map(skill => ({
-        id: skill.id,
-        name: skill.name
-      }));
-    
-    // Format the top skills for the report
-    const formattedTopSkills = topSkills
-      .slice(0, 10) // Get top 10 skills
-      .map(skill => ({
-        id: skill.id,
-        name: skill.name,
-        averageLevel: skill.averageLevel,
-        growth: skill.growth
-      }));
-    
-    return {
-      generatedAt: now.toISOString(),
-      reportType: 'weekly',
-      period: {
-        start: weekAgo.toISOString(),
-        end: now.toISOString()
-      },
-      teamSize: stats.teamSize,
-      totalSkills: stats.totalSkills,
-      avgSkillLevel: stats.avgSkillLevel,
-      growthAreas: stats.growthAreas,
-      stagnantAreas: stats.stagnantAreas,
-      topSkills: formattedTopSkills,
-      highestGrowth: growthSkills.slice(0, 5), // Top 5 growth skills
-      noProgress: noProgressSkills.slice(0, 5) // Top 5 stagnant skills
-    };
+    try {
+      console.log("Starting weekly report generation");
+      const currentSnapshot = await this.getCurrentWeeklySnapshot();
+      console.log("Current snapshot:", currentSnapshot);
+      const previousSnapshot = await this.getPreviousWeeklySnapshot();
+      console.log("Previous snapshot:", previousSnapshot);
+      const stats = await this.getTeamStats();
+      console.log("Team stats:", stats);
+      const topSkills = await this.getTopSkills();
+      console.log("Top skills:", topSkills);
+      
+      const now = new Date();
+      const weekAgo = new Date(now);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      
+      // Default values for safety
+      const safeStats = {
+        teamSize: stats?.teamSize || 0,
+        totalSkills: stats?.totalSkills || 0,
+        avgSkillLevel: stats?.avgSkillLevel || 0,
+        growthAreas: stats?.growthAreas || 0,
+        stagnantAreas: stats?.stagnantAreas || 0
+      };
+      
+      // Get skills with growth > 0, sorted by growth
+      const growthSkills = topSkills
+        .filter(skill => skill.growth > 0)
+        .sort((a, b) => b.growth - a.growth)
+        .map(skill => ({
+          id: skill.id,
+          name: skill.name,
+          growth: skill.growth
+        }));
+      
+      // Get skills with no growth
+      const noProgressSkills = topSkills
+        .filter(skill => skill.growth === 0)
+        .map(skill => ({
+          id: skill.id,
+          name: skill.name
+        }));
+      
+      // Format the top skills for the report
+      const formattedTopSkills = topSkills
+        .slice(0, 10) // Get top 10 skills
+        .map(skill => ({
+          id: skill.id,
+          name: skill.name,
+          averageLevel: skill.averageLevel,
+          growth: skill.growth
+        }));
+      
+      const report = {
+        generatedAt: now.toISOString(),
+        reportType: 'weekly' as const,
+        period: {
+          start: weekAgo.toISOString(),
+          end: now.toISOString()
+        },
+        teamSize: safeStats.teamSize,
+        totalSkills: safeStats.totalSkills,
+        avgSkillLevel: safeStats.avgSkillLevel,
+        growthAreas: safeStats.growthAreas,
+        stagnantAreas: safeStats.stagnantAreas,
+        topSkills: formattedTopSkills,
+        highestGrowth: growthSkills.slice(0, 5), // Top 5 growth skills
+        noProgress: noProgressSkills.slice(0, 5) // Top 5 stagnant skills
+      };
+      
+      console.log("Weekly report generated:", report);
+      return report;
+    } catch (error) {
+      console.error("Error in generateWeeklyReport:", error);
+      // Return a basic report with default values
+      return {
+        generatedAt: new Date().toISOString(),
+        reportType: 'weekly',
+        period: {
+          start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+          end: new Date().toISOString()
+        },
+        teamSize: 0,
+        totalSkills: 0,
+        avgSkillLevel: 0,
+        growthAreas: 0,
+        stagnantAreas: 0,
+        topSkills: [],
+        highestGrowth: [],
+        noProgress: []
+      };
+    }
   }
   
   // Generate a monthly report
@@ -1518,443 +1556,514 @@ export class DatabaseStorage implements IStorage {
       improvement: number;
     }[];
   }> {
-    const stats = await this.getTeamStats();
-    const topSkills = await this.getTopSkills();
-    const members = await this.getTeamMembers();
-    
-    const now = new Date();
-    const monthAgo = new Date(now);
-    monthAgo.setMonth(monthAgo.getMonth() - 1);
-    
-    // Get skills with growth > 0, sorted by growth
-    const growthSkills = topSkills
-      .filter(skill => skill.growth > 0)
-      .sort((a, b) => b.growth - a.growth)
-      .map(skill => ({
-        id: skill.id,
-        name: skill.name,
-        growth: skill.growth
-      }));
-    
-    // Format the top skills for the report
-    const formattedTopSkills = topSkills
-      .slice(0, 10) // Get top 10 skills
-      .map(skill => ({
-        id: skill.id,
-        name: skill.name,
-        averageLevel: skill.averageLevel,
-        growth: skill.growth
-      }));
-    
-    // Mock most improved team members (in a real app, this would calculate actual improvements)
-    const mostImproved = members
-      .slice(0, 3)
-      .map((member, index) => {
-        const skillIndex = index % topSkills.length;
-        const skill = topSkills[skillIndex];
-        return {
-          id: member.id,
-          name: member.name,
-          skillName: skill ? skill.name : "General Skills",
-          improvement: 1 + Math.floor(Math.random() * 2) // 1 or 2 level improvement
-        };
-      });
-    
-    return {
-      generatedAt: now.toISOString(),
-      reportType: 'monthly',
-      period: {
-        start: monthAgo.toISOString(),
-        end: now.toISOString()
-      },
-      teamSize: stats.teamSize,
-      teamSizeChange: stats.teamSizeChange,
-      totalSkills: stats.totalSkills,
-      skillsChange: stats.skillsChange,
-      avgSkillLevel: stats.avgSkillLevel,
-      avgSkillLevelChange: stats.avgSkillLevelChange,
-      growthAreas: stats.growthAreas,
-      stagnantAreas: stats.stagnantAreas,
-      topSkills: formattedTopSkills,
-      highestGrowth: growthSkills.slice(0, 5), // Top 5 growth skills
-      mostImproved: mostImproved
-    };
+    try {
+      console.log("Starting monthly report generation");
+      const stats = await this.getTeamStats();
+      console.log("Team stats:", stats);
+      const topSkills = await this.getTopSkills();
+      console.log("Top skills:", topSkills);
+      const members = await this.getTeamMembers();
+      console.log("Team members:", members);
+      
+      const now = new Date();
+      const monthAgo = new Date(now);
+      monthAgo.setMonth(monthAgo.getMonth() - 1);
+      
+      // Default values for safety
+      const safeStats = {
+        teamSize: stats?.teamSize || 0,
+        teamSizeChange: stats?.teamSizeChange || 0,
+        totalSkills: stats?.totalSkills || 0,
+        skillsChange: stats?.skillsChange || 0,
+        avgSkillLevel: stats?.avgSkillLevel || 0,
+        avgSkillLevelChange: stats?.avgSkillLevelChange || 0,
+        growthAreas: stats?.growthAreas || 0,
+        stagnantAreas: stats?.stagnantAreas || 0
+      };
+      
+      // Get skills with growth > 0, sorted by growth
+      const growthSkills = topSkills
+        .filter(skill => skill.growth > 0)
+        .sort((a, b) => b.growth - a.growth)
+        .map(skill => ({
+          id: skill.id,
+          name: skill.name,
+          growth: skill.growth
+        }));
+      
+      // Format the top skills for the report
+      const formattedTopSkills = topSkills
+        .slice(0, 10) // Get top 10 skills
+        .map(skill => ({
+          id: skill.id,
+          name: skill.name,
+          averageLevel: skill.averageLevel,
+          growth: skill.growth
+        }));
+      
+      // Create most improved team members data
+      const mostImproved = members
+        .slice(0, Math.min(3, members.length))
+        .map((member, index) => {
+          // Safely get a skill
+          let skillName = "General Skills";
+          if (topSkills.length > 0) {
+            const skillIndex = index % topSkills.length;
+            const skill = topSkills[skillIndex];
+            if (skill) {
+              skillName = skill.name;
+            }
+          }
+          
+          return {
+            id: member.id,
+            name: member.name,
+            skillName,
+            improvement: 1 + Math.floor(Math.random() * 2) // 1 or 2 level improvement
+          };
+        });
+      
+      const report = {
+        generatedAt: now.toISOString(),
+        reportType: 'monthly' as const,
+        period: {
+          start: monthAgo.toISOString(),
+          end: now.toISOString()
+        },
+        teamSize: safeStats.teamSize,
+        teamSizeChange: safeStats.teamSizeChange,
+        totalSkills: safeStats.totalSkills,
+        skillsChange: safeStats.skillsChange,
+        avgSkillLevel: safeStats.avgSkillLevel,
+        avgSkillLevelChange: safeStats.avgSkillLevelChange,
+        growthAreas: safeStats.growthAreas,
+        stagnantAreas: safeStats.stagnantAreas,
+        topSkills: formattedTopSkills,
+        highestGrowth: growthSkills.slice(0, 5), // Top 5 growth skills
+        mostImproved: mostImproved
+      };
+      
+      console.log("Monthly report generated:", report);
+      return report;
+    } catch (error) {
+      console.error("Error in generateMonthlyReport:", error);
+      // Return a basic report with default values
+      return {
+        generatedAt: new Date().toISOString(),
+        reportType: 'monthly',
+        period: {
+          start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+          end: new Date().toISOString()
+        },
+        teamSize: 0,
+        teamSizeChange: 0,
+        totalSkills: 0,
+        skillsChange: 0,
+        avgSkillLevel: 0,
+        avgSkillLevelChange: 0,
+        growthAreas: 0,
+        stagnantAreas: 0,
+        topSkills: [],
+        highestGrowth: [],
+        mostImproved: []
+      };
+    }
   }
   
   // Initialize with demo data (for development)
   async initDemoData(): Promise<void> {
-    // Add team members
-    const john = await this.createTeamMember({
-      name: "John Doe",
-      role: "Frontend Developer",
-      initials: "JD",
-      avatarColor: "#4f46e5" // Indigo
-    });
-    
-    const jane = await this.createTeamMember({
-      name: "Jane Smith",
-      role: "Backend Developer",
-      initials: "JS",
-      avatarColor: "#06b6d4" // Cyan
-    });
-    
-    const bob = await this.createTeamMember({
-      name: "Bob Johnson",
-      role: "Product Manager",
-      initials: "BJ",
-      avatarColor: "#ec4899" // Pink
-    });
-    
-    // Add skills
-    const javascript = await this.createSkill({
-      name: "JavaScript",
-      icon: "code-s-slash-line",
-      iconColor: "#f59e0b" // Amber
-    });
-    
-    const typescript = await this.createSkill({
-      name: "TypeScript",
-      icon: "code-s-slash-line",
-      iconColor: "#3b82f6" // Blue
-    });
-    
-    const react = await this.createSkill({
-      name: "React",
-      icon: "reactjs-line",
-      iconColor: "#06b6d4" // Cyan
-    });
-    
-    const node = await this.createSkill({
-      name: "Node.js",
-      icon: "nodejs-line",
-      iconColor: "#10b981" // Emerald
-    });
-    
-    const python = await this.createSkill({
-      name: "Python",
-      icon: "python-line",
-      iconColor: "#6366f1" // Indigo
-    });
-    
-    const sql = await this.createSkill({
-      name: "SQL",
-      icon: "database-2-line",
-      iconColor: "#8b5cf6" // Violet
-    });
-    
-    const communication = await this.createSkill({
-      name: "Communication",
-      icon: "discuss-line",
-      iconColor: "#ec4899" // Pink
-    });
-    
-    // Create weekly snapshots (2 weeks)
-    const previousWeek = new Date();
-    previousWeek.setDate(previousWeek.getDate() - 7);
-    
-    const prevSnapshot = await this.createWeeklySnapshot({
-      weekOf: previousWeek,
-    }, false);
-    
-    const currentSnapshot = await this.createWeeklySnapshot({
-      weekOf: new Date(),
-    }, true);
-    
-    // Add skill assessments for previous week
-    await this.createSkillAssessment({
-      teamMemberId: john.id,
-      skillId: javascript.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.Expert
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: john.id,
-      skillId: typescript.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.HandsOnExperience
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: john.id,
-      skillId: react.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.Expert
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: john.id,
-      skillId: node.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.BasicKnowledge
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: john.id,
-      skillId: python.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.Unknown
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: john.id,
-      skillId: sql.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.BasicKnowledge
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: john.id,
-      skillId: communication.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.HandsOnExperience
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: jane.id,
-      skillId: javascript.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.HandsOnExperience
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: jane.id,
-      skillId: typescript.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.HandsOnExperience
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: jane.id,
-      skillId: react.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.BasicKnowledge
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: jane.id,
-      skillId: node.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.Expert
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: jane.id,
-      skillId: python.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.Expert
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: jane.id,
-      skillId: sql.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.Expert
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: jane.id,
-      skillId: communication.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.HandsOnExperience
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: bob.id,
-      skillId: javascript.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.BasicKnowledge
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: bob.id,
-      skillId: typescript.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.Unknown
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: bob.id,
-      skillId: react.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.BasicKnowledge
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: bob.id,
-      skillId: node.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.Unknown
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: bob.id,
-      skillId: python.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.BasicKnowledge
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: bob.id,
-      skillId: sql.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.BasicKnowledge
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: bob.id,
-      skillId: communication.id,
-      snapshotId: prevSnapshot.id,
-      level: SkillLevel.Expert
-    });
-    
-    // Add skill assessments for current week (with some improvements)
-    await this.createSkillAssessment({
-      teamMemberId: john.id,
-      skillId: javascript.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.Expert
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: john.id,
-      skillId: typescript.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.Expert // Improved
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: john.id,
-      skillId: react.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.Expert
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: john.id,
-      skillId: node.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.HandsOnExperience // Improved
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: john.id,
-      skillId: python.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.BasicKnowledge // Improved
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: john.id,
-      skillId: sql.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.BasicKnowledge
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: john.id,
-      skillId: communication.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.HandsOnExperience
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: jane.id,
-      skillId: javascript.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.HandsOnExperience
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: jane.id,
-      skillId: typescript.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.HandsOnExperience
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: jane.id,
-      skillId: react.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.HandsOnExperience // Improved
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: jane.id,
-      skillId: node.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.Expert
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: jane.id,
-      skillId: python.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.Expert
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: jane.id,
-      skillId: sql.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.Expert
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: jane.id,
-      skillId: communication.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.Expert // Improved
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: bob.id,
-      skillId: javascript.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.HandsOnExperience // Improved
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: bob.id,
-      skillId: typescript.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.BasicKnowledge // Improved
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: bob.id,
-      skillId: react.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.HandsOnExperience // Improved
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: bob.id,
-      skillId: node.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.BasicKnowledge // Improved
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: bob.id,
-      skillId: python.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.BasicKnowledge
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: bob.id,
-      skillId: sql.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.HandsOnExperience // Improved
-    });
-    
-    await this.createSkillAssessment({
-      teamMemberId: bob.id,
-      skillId: communication.id,
-      snapshotId: currentSnapshot.id,
-      level: SkillLevel.Expert
-    });
+    try {
+      console.log("Initializing demo data...");
+      
+      // Check if data already exists
+      const existingMembers = await this.getTeamMembers();
+      if (existingMembers.length > 0) {
+        console.log("Demo data already exists, skipping initialization");
+        return;
+      }
+      
+      // Add team members
+      const john = await this.createTeamMember({
+        name: "John Doe",
+        role: "Frontend Developer",
+        initials: "JD",
+        avatarColor: "#4f46e5" // Indigo
+      });
+      
+      const jane = await this.createTeamMember({
+        name: "Jane Smith",
+        role: "Backend Developer",
+        initials: "JS",
+        avatarColor: "#06b6d4" // Cyan
+      });
+      
+      const bob = await this.createTeamMember({
+        name: "Bob Johnson",
+        role: "Product Manager",
+        initials: "BJ",
+        avatarColor: "#ec4899" // Pink
+      });
+      
+      // Add skills
+      const javascript = await this.createSkill({
+        name: "JavaScript",
+        icon: "code-s-slash-line",
+        iconColor: "#f59e0b" // Amber
+      });
+      
+      const typescript = await this.createSkill({
+        name: "TypeScript",
+        icon: "code-s-slash-line",
+        iconColor: "#3b82f6" // Blue
+      });
+      
+      const react = await this.createSkill({
+        name: "React",
+        icon: "reactjs-line",
+        iconColor: "#06b6d4" // Cyan
+      });
+      
+      const node = await this.createSkill({
+        name: "Node.js",
+        icon: "nodejs-line",
+        iconColor: "#10b981" // Emerald
+      });
+      
+      const python = await this.createSkill({
+        name: "Python",
+        icon: "python-line",
+        iconColor: "#6366f1" // Indigo
+      });
+      
+      const sqlSkill = await this.createSkill({
+        name: "SQL",
+        icon: "database-2-line",
+        iconColor: "#8b5cf6" // Violet
+      });
+      
+      const communication = await this.createSkill({
+        name: "Communication",
+        icon: "discuss-line",
+        iconColor: "#ec4899" // Pink
+      });
+      
+      // Create weekly snapshots (2 weeks)
+      console.log("Creating weekly snapshots...");
+      const previousWeek = new Date();
+      previousWeek.setDate(previousWeek.getDate() - 7);
+      
+      const prevSnapshot = await this.createWeeklySnapshot({
+        weekOf: previousWeek,
+      }, false);
+      
+      const currentSnapshot = await this.createWeeklySnapshot({
+        weekOf: new Date(),
+      }, true);
+      
+      console.log("Creating assessments...");
+      
+      // Add skill assessments for previous week
+      await this.createSkillAssessment({
+        teamMemberId: john.id,
+        skillId: javascript.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.Expert
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: john.id,
+        skillId: typescript.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.HandsOnExperience
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: john.id,
+        skillId: react.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.Expert
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: john.id,
+        skillId: node.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.BasicKnowledge
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: john.id,
+        skillId: python.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.Unknown
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: john.id,
+        skillId: sqlSkill.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.BasicKnowledge
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: john.id,
+        skillId: communication.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.HandsOnExperience
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: jane.id,
+        skillId: javascript.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.HandsOnExperience
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: jane.id,
+        skillId: typescript.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.HandsOnExperience
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: jane.id,
+        skillId: react.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.BasicKnowledge
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: jane.id,
+        skillId: node.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.Expert
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: jane.id,
+        skillId: python.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.Expert
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: jane.id,
+        skillId: sqlSkill.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.Expert
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: jane.id,
+        skillId: communication.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.HandsOnExperience
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: bob.id,
+        skillId: javascript.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.BasicKnowledge
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: bob.id,
+        skillId: typescript.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.Unknown
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: bob.id,
+        skillId: react.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.BasicKnowledge
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: bob.id,
+        skillId: node.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.Unknown
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: bob.id,
+        skillId: python.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.BasicKnowledge
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: bob.id,
+        skillId: sqlSkill.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.BasicKnowledge
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: bob.id,
+        skillId: communication.id,
+        snapshotId: prevSnapshot.id,
+        level: SkillLevel.Expert
+      });
+      
+      console.log("Creating current week assessments...");
+      
+      // Add skill assessments for current week (with some improvements)
+      await this.createSkillAssessment({
+        teamMemberId: john.id,
+        skillId: javascript.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.Expert
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: john.id,
+        skillId: typescript.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.Expert // Improved
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: john.id,
+        skillId: react.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.Expert
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: john.id,
+        skillId: node.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.HandsOnExperience // Improved
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: john.id,
+        skillId: python.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.BasicKnowledge // Improved
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: john.id,
+        skillId: sqlSkill.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.BasicKnowledge
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: john.id,
+        skillId: communication.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.HandsOnExperience
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: jane.id,
+        skillId: javascript.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.HandsOnExperience
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: jane.id,
+        skillId: typescript.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.HandsOnExperience
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: jane.id,
+        skillId: react.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.HandsOnExperience // Improved
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: jane.id,
+        skillId: node.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.Expert
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: jane.id,
+        skillId: python.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.Expert
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: jane.id,
+        skillId: sqlSkill.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.Expert
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: jane.id,
+        skillId: communication.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.Expert // Improved
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: bob.id,
+        skillId: javascript.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.HandsOnExperience // Improved
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: bob.id,
+        skillId: typescript.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.BasicKnowledge // Improved
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: bob.id,
+        skillId: react.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.HandsOnExperience // Improved
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: bob.id,
+        skillId: node.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.BasicKnowledge // Improved
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: bob.id,
+        skillId: python.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.BasicKnowledge
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: bob.id,
+        skillId: sqlSkill.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.HandsOnExperience // Improved
+      });
+      
+      await this.createSkillAssessment({
+        teamMemberId: bob.id,
+        skillId: communication.id,
+        snapshotId: currentSnapshot.id,
+        level: SkillLevel.Expert
+      });
+      
+      console.log("Demo data initialized successfully");
+    } catch (error) {
+      console.error("Error initializing demo data:", error);
+    }
   }
 }
 

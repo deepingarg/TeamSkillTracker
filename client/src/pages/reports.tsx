@@ -111,7 +111,10 @@ export default function Reports() {
                     throw new Error('Failed to generate weekly report');
                   }
                   
-                  const report = await response.json();
+                  console.log("Weekly report response:", response);
+                  const responseText = await response.text();
+                  console.log("Weekly response text:", responseText);
+                  const report = responseText ? JSON.parse(responseText) : {};
                   
                   // Create a Blob with the JSON data
                   const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
@@ -195,7 +198,10 @@ export default function Reports() {
                     throw new Error('Failed to generate monthly report');
                   }
                   
-                  const report = await response.json();
+                  console.log("Monthly report response:", response);
+                  const responseText = await response.text();
+                  console.log("Monthly response text:", responseText);
+                  const report = responseText ? JSON.parse(responseText) : {};
                   
                   // Create a Blob with the JSON data
                   const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
