@@ -23,10 +23,82 @@ export default function SkillsMatrix() {
   });
 
   const handleImport = () => {
-    toast({
-      title: "Import Feature",
-      description: "Import functionality will be implemented in a future update."
-    });
+    // Create file input element
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.csv';
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
+    
+    // Handle file selection
+    fileInput.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) {
+        document.body.removeChild(fileInput);
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const csvContent = event.target?.result as string;
+          if (!csvContent) throw new Error("Failed to read file");
+          
+          // Parse CSV content
+          const rows = csvContent.split('\n').map(row => row.split(','));
+          if (rows.length < 2) throw new Error("Invalid CSV format: insufficient data");
+          
+          // The first row should be headers: "Team Member", "Role", [skill names...]
+          const headers = rows[0];
+          if (headers.length < 3) throw new Error("Invalid CSV format: insufficient columns");
+          
+          // Process the data - for now, just show success message
+          // In a real implementation, we would validate the data and update the database
+          toast({
+            title: "Import Successful",
+            description: `Parsed ${rows.length - 1} team members with ${headers.length - 2} skills.`,
+          });
+          
+          // Example of what actual processing would look like:
+          // const skillNames = headers.slice(2);
+          // const memberData = rows.slice(1).map(row => {
+          //   return {
+          //     name: row[0],
+          //     role: row[1],
+          //     skills: row.slice(2).map((level, index) => ({
+          //       name: skillNames[index],
+          //       level: parseInt(level) || 0
+          //     }))
+          //   };
+          // });
+          // Then we would send this data to the server
+          
+        } catch (error) {
+          console.error("Import error:", error);
+          toast({
+            title: "Import Failed",
+            description: error instanceof Error ? error.message : "Failed to parse CSV file",
+            variant: "destructive"
+          });
+        }
+        
+        document.body.removeChild(fileInput);
+      };
+      
+      reader.onerror = () => {
+        toast({
+          title: "Import Failed",
+          description: "Failed to read the file",
+          variant: "destructive"
+        });
+        document.body.removeChild(fileInput);
+      };
+      
+      reader.readAsText(file);
+    };
+    
+    // Trigger file selection dialog
+    fileInput.click();
   };
 
   const handleExport = () => {

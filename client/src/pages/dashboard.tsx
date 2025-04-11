@@ -7,14 +7,39 @@ import { SkillsMatrixTable } from "@/components/skills-matrix/skills-matrix-tabl
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
-import { Skill, TeamMember, WeeklyComparisonData, GrowthPerSkillData, WeeklySnapshot } from "@shared/schema";
+import { 
+  Skill, 
+  TeamMember, 
+  WeeklyComparisonData, 
+  GrowthPerSkillData, 
+  WeeklySnapshot,
+  SkillMatrixData
+} from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+
+// Define interfaces for the API responses
+interface TeamStats {
+  teamSize: number;
+  totalSkills: number;
+  avgSkillLevel: number;
+  growthAreas: number;
+  stagnantAreas: number;
+}
+
+interface TopSkill {
+  id: number;
+  name: string;
+  icon: string;
+  iconColor: string;
+  averageLevel: number;
+  growth: number;
+}
 
 export default function Dashboard() {
   const { toast } = useToast();
 
   // Fetch data for dashboard
-  const { data: teamStats, isLoading: isLoadingStats } = useQuery({
+  const { data: teamStats, isLoading: isLoadingStats } = useQuery<TeamStats>({
     queryKey: ["/api/team-stats"],
   });
 
@@ -26,11 +51,11 @@ export default function Dashboard() {
     queryKey: ["/api/growth-per-skill"],
   });
 
-  const { data: topSkills, isLoading: isLoadingTopSkills } = useQuery({
+  const { data: topSkills, isLoading: isLoadingTopSkills } = useQuery<TopSkill[]>({
     queryKey: ["/api/top-skills"],
   });
 
-  const { data: skillMatrix, isLoading: isLoadingMatrix } = useQuery({
+  const { data: skillMatrix, isLoading: isLoadingMatrix } = useQuery<SkillMatrixData>({
     queryKey: ["/api/skill-matrix"],
   });
 

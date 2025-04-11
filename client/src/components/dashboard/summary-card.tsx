@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { ArrowUpIcon, ArrowDownIcon } from "lucide-react";
+import { ArrowUpIcon, ArrowDownIcon, Loader2 } from "lucide-react";
 
 interface SummaryCardProps {
   title: string;
@@ -11,6 +11,7 @@ interface SummaryCardProps {
   changeText?: string;
   changeIsPositive?: boolean;
   changeIsNegative?: boolean;
+  isLoading?: boolean;
 }
 
 export function SummaryCard({
@@ -23,9 +24,16 @@ export function SummaryCard({
   changeText,
   changeIsPositive,
   changeIsNegative,
+  isLoading = false,
 }: SummaryCardProps) {
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white rounded-lg shadow-sm p-6 relative">
+      {isLoading && (
+        <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-lg">
+          <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+        </div>
+      )}
+      
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm text-gray-500">{title}</p>
